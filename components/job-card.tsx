@@ -2,6 +2,7 @@
 
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Barcode } from '@/components/barcode'
 import { AlertCircle } from 'lucide-react'
 
 interface JobCardProps {
@@ -194,6 +195,13 @@ export function JobCard({ jobCard }: JobCardProps) {
               </div>
             </div>
           </div>
+        </div>
+
+        <hr className="border-border" />
+
+        {/* Barcode Section */}
+        <div className="flex justify-center">
+          <Barcode jobId={jobCard.jcard_id.toString()} displayText="Scan to process job" />
         </div>
       </div>
     </Card>
