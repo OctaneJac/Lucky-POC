@@ -44,31 +44,55 @@ interface Stage {
   stage_name: string
 }
 
-async function getJobCards() {
-  const sql = neon(process.env.DATABASE_URL!)
-  
-  try {
-    const jcards = await sql<JCard>`SELECT * FROM j_cards`
-    const jobs = await sql<Job>`SELECT * FROM jobs`
-    const stages = await sql<Stage>`SELECT * FROM stages`
+/** Row passed to `<JobCard />` — j-card fields plus linked job + stage label */
+type JobCardRow = JCard & {
+  job: {
+    job_id: number
+    status: string
+    current_stage_id: number | null
+    is_flagged: boolean
+  } | null
+  stageName: string | null
+}
 
-    // Create a map of jcard_id to job info
-    const jobMap = new Map()
-    jobs.forEach(job => {
+async function getJobCards(): Promise<JobCardRow[]> {
+  const sql = neon(process.env.DATABASE_URL!)
+
+  try {
+    const jcards = (await sql`SELECT * FROM j_cards`) as JCard[]
+    const jobs = (await sql`SELECT * FROM jobs`) as Job[]
+    const stages = (await sql`SELECT * FROM stages`) as Stage[]
+
+    const jobMap = new Map<number, Job>()
+    jobs.forEach((job) => {
       jobMap.set(job.jcard_id, job)
     })
 
-    // Create a map of stage_id to stage name
-    const stageMap = new Map()
-    stages.forEach(stage => {
+    const stageMap = new Map<number, string>()
+    stages.forEach((stage) => {
       stageMap.set(stage.stage_id, stage.stage_name)
     })
 
-    return jcards.map(jcard => ({
-      ...jcard,
-      job: jobMap.get(jcard.jcard_id) || null,
-      stageName: jobMap.get(jcard.jcard_id) ? stageMap.get(jobMap.get(jcard.jcard_id).current_stage_id) : null,
-    }))
+    return jcards.map((jcard): JobCardRow => {
+      const job = jobMap.get(jcard.jcard_id) ?? null
+      const stageName =
+        job?.current_stage_id != null
+          ? (stageMap.get(job.current_stage_id) ?? null)
+          : null
+
+      return {
+        ...jcard,
+        job: job
+          ? {
+              job_id: job.job_id,
+              status: job.status,
+              current_stage_id: job.current_stage_id,
+              is_flagged: job.is_flagged,
+            }
+          : null,
+        stageName,
+      }
+    })
   } catch (error) {
     console.error('Database error:', error)
     return []
@@ -81,7 +105,7 @@ export default async function JobCardsPage() {
   return (
     <div className="h-full bg-background p-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground tracking-tight">Job Cards</h1>
+        <h1 className="text-4xl font-bold text-foreground tracking-tight">Job cards</h1>
         <p className="text-muted-foreground">Active jobs on the factory floor</p>
       </div>
 

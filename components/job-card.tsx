@@ -47,6 +47,8 @@ const stageColors: Record<string, string> = {
   'Crimping': 'bg-amber-100 text-amber-800',
   'Sub Assembly': 'bg-purple-100 text-purple-800',
   'Finished': 'bg-green-100 text-green-800',
+  'Backlog': 'bg-gray-100 text-gray-800',
+  'Rejected': 'bg-red-100 text-red-800',
 }
 
 export function JobCard({ jobCard }: JobCardProps) {
@@ -58,8 +60,8 @@ export function JobCard({ jobCard }: JobCardProps) {
       <div className="px-6 py-2">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <p className="text-sm font-semibold opacity-75">Job No</p>
-            <h2 className="text-3xl font-bold">{jobCard.jcard_no}</h2>
+            <p className="text-sm font-semibold">Job No</p>
+            <h2 className="text-3xl font-bold text-primary">{jobCard.jcard_no}</h2>
             <p className="text-sm mt-2 opacity-90">{jobCard.area || 'N/A'}</p>
           </div>
           <div className="text-right">

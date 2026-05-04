@@ -40,11 +40,11 @@ const lineChartConfig = {
 const barChartConfig = {
   working: {
     label: 'Working',
-    color: 'var(--chart-2)',
+    color: 'var(--chart-1)',
   },
   waiting: {
     label: 'Waiting',
-    color: 'var(--chart-3)',
+    color: 'var(--chart-2)',
   },
 } satisfies ChartConfig
 
@@ -52,7 +52,7 @@ export default function DashboardPage() {
   const data = dashboardData
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
+    <div className="space-y-8 p-12">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
@@ -69,7 +69,7 @@ export default function DashboardPage() {
             </CardAction>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold tabular-nums">
+            <p className="text-3xl font-bold tabular-nums">
               {data.scorecards.activeJobs}
             </p>
           </CardContent>
@@ -86,7 +86,7 @@ export default function DashboardPage() {
             </CardAction>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-4xl font-bold tabular-nums">
+            <p className="text-3xl font-bold tabular-nums">
               {data.scorecards.completedToday.count}
             </p>
             <div className="space-y-2">
@@ -109,7 +109,7 @@ export default function DashboardPage() {
             </CardAction>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold tabular-nums">
+            <p className="text-3xl font-bold tabular-nums">
               {data.scorecards.averageStageTime}
             </p>
           </CardContent>
@@ -123,7 +123,7 @@ export default function DashboardPage() {
             </CardAction>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold tabular-nums">
+            <p className="text-3xl font-bold tabular-nums">
               {data.scorecards.averageIdleTime}
             </p>
           </CardContent>
@@ -184,7 +184,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Working vs Waiting Time by Stage</CardTitle>
+            <CardTitle>Working vs Waiting Time by Stage (minutes)</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer

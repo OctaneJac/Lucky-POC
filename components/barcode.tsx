@@ -31,7 +31,7 @@ export function Barcode({ jobId, displayText }: BarcodeProps) {
   return (
     <div className="flex flex-col items-center gap-2 p-4 bg-white rounded-lg border border-gray-200">
       <svg ref={svgRef} />
-      {displayText && <p className="text-sm text-gray-600">{displayText}</p>}
+      {/* {displayText && <p className="text-sm text-gray-600">{displayText}</p>} */}
     </div>
   )
 }

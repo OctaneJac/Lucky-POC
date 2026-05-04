@@ -27,6 +27,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import Image from 'next/image'
 
 const data = {
   user: {
@@ -50,11 +51,11 @@ const data = {
       url: '/qr-scanner',
       icon: QrCode,
     },
-    {
-      title: 'Settings',
-      url: '/settings',
-      icon: Wrench,
-    },
+    // {
+    //   title: 'Settings',
+    //   url: '/settings',
+    //   icon: Wrench,
+    // },
   ],
   documents: [
     {
@@ -94,12 +95,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link href="/job-cards" className="flex items-start gap-2">
+                <Image src="/logo.jpeg" alt="Lucky Motors Corp" width={32} height={32} />
                 <span className="flex min-w-0 flex-col gap-0.5 text-left">
                   <span className="text-base font-semibold leading-tight">
-                    Assembly Tracker
+                    Lucky Motors Corp
                   </span>
                   <span className="truncate text-xs font-normal text-sidebar-foreground/70">
-                    Factory floor management
+                    Wire Harness assembly tracking
                   </span>
                 </span>
               </Link>
