@@ -55,7 +55,7 @@ export function JobCard({ jobCard }: JobCardProps) {
   return (
     <Card className="overflow-hidden border border-border bg-card hover:shadow-lg transition-shadow">
       {/* Header: Job No, Area, and Stage */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white">
+      <div className="px-6 py-2">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <p className="text-sm font-semibold opacity-75">Job No</p>

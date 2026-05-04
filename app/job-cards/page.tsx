@@ -81,8 +81,8 @@ export default async function JobCardsPage() {
   return (
     <div className="h-full bg-background p-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground">Job Cards</h1>
-        <p className="text-muted-foreground mt-2">Active jobs on the factory floor</p>
+        <h1 className="text-4xl font-bold text-foreground tracking-tight">Job Cards</h1>
+        <p className="text-muted-foreground">Active jobs on the factory floor</p>
       </div>
 
       {jobCards.length === 0 ? (
