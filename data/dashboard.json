@@ -1,0 +1,76 @@
+{
+  "scorecards": {
+    "activeJobs": 24,
+    "completedToday": {
+      "count": 18,
+      "dailyGoal": 25,
+      "percentage": 72
+    },
+    "averageStageTime": "2h 15m",
+    "averageIdleTime": "45m"
+  },
+  "stageData": [
+    {
+      "stageName": "Cutting",
+      "stageId": 1,
+      "activeJobs": 8,
+      "rejectedJobs": 2,
+      "rejectRate": 2.5
+    },
+    {
+      "stageName": "Assembly",
+      "stageId": 2,
+      "activeJobs": 12,
+      "rejectedJobs": 1,
+      "rejectRate": 1.2
+    },
+    {
+      "stageName": "Testing",
+      "stageId": 3,
+      "activeJobs": 4,
+      "rejectedJobs": 3,
+      "rejectRate": 4.1
+    },
+    {
+      "stageName": "Finished",
+      "stageId": 4,
+      "activeJobs": 0,
+      "rejectedJobs": 0,
+      "rejectRate": 0
+    }
+  ],
+  "unitsPerHour": [
+    { "time": "08:00", "units": 12 },
+    { "time": "09:00", "units": 15 },
+    { "time": "10:00", "units": 18 },
+    { "time": "11:00", "units": 22 },
+    { "time": "12:00", "units": 20 },
+    { "time": "13:00", "units": 8 },
+    { "time": "14:00", "units": 25 },
+    { "time": "15:00", "units": 28 },
+    { "time": "16:00", "units": 24 },
+    { "time": "17:00", "units": 19 }
+  ],
+  "stageTimeData": [
+    {
+      "stage": "Cutting",
+      "working": 85,
+      "waiting": 15
+    },
+    {
+      "stage": "Assembly",
+      "working": 78,
+      "waiting": 22
+    },
+    {
+      "stage": "Testing",
+      "working": 72,
+      "waiting": 28
+    },
+    {
+      "stage": "Finished",
+      "working": 0,
+      "waiting": 0
+    }
+  ]
+}

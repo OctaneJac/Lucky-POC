@@ -1,150 +1,190 @@
-import { neon } from '@neondatabase/serverless'
+'use client'
+
+import { useMemo } from 'react'
+import dashboardData from '@/data/dashboard.json'
 import { Card } from '@/components/ui/card'
-import { BarChart3, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
+import { StageCard } from '@/components/stage-card'
+import { Activity, CheckCircle2, Clock, Target } from 'lucide-react'
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
 
-interface Stage {
-  stage_id: number
-  stage_name: string
-}
+export default function DashboardPage() {
+  const data = dashboardData
 
-interface Job {
-  current_stage_id: number | null
-  is_flagged: boolean
-}
-
-async function getJobStats() {
-  const sql = neon(process.env.DATABASE_URL!)
-  
-  try {
-    const jobs = await sql<Job>`SELECT current_stage_id, is_flagged FROM jobs`
-    const stages = await sql<Stage>`SELECT * FROM stages`
-
-    const stageMap = new Map()
-    stages.forEach(stage => {
-      stageMap.set(stage.stage_id, stage.stage_name)
-    })
-
-    const stats = {
-      totalJobs: jobs.length,
-      jobsByStage: new Map<string, number>(),
-      flaggedJobs: 0,
-      pendingJobs: 0,
-    }
-
-    jobs.forEach(job => {
-      if (job.is_flagged) stats.flaggedJobs++
-      if (job.current_stage_id === null) stats.pendingJobs++
-      
-      const stageName = job.current_stage_id ? stageMap.get(job.current_stage_id) : 'Pending'
-      stats.jobsByStage.set(
-        stageName,
-        (stats.jobsByStage.get(stageName) || 0) + 1
-      )
-    })
-
-    return {
-      stats,
-      stages: Array.from(stats.jobsByStage.entries()),
-    }
-  } catch (error) {
-    console.error('Database error:', error)
-    return {
-      stats: {
-        totalJobs: 0,
-        jobsByStage: new Map(),
-        flaggedJobs: 0,
-        pendingJobs: 0,
-      },
-      stages: [],
-    }
-  }
-}
-
-export default async function DashboardPage() {
-  const { stats, stages } = await getJobStats()
+  // Memoize stage colors for charts
+  const stageColors = useMemo(
+    () => ({
+      'Cutting': '#3b82f6',
+      'Assembly': '#f59e0b',
+      'Testing': '#a855f7',
+      'Finished': '#10b981',
+    }),
+    []
+  )
 
   return (
-    <div className="h-full bg-background p-8">
+    <div className="min-h-screen bg-background p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Factory floor overview and statistics</p>
+        <p className="text-muted-foreground mt-2">Real-time factory floor analytics and performance</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
-        {/* Total Jobs */}
+      {/* Scorecards - Top Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Active Jobs */}
         <Card className="p-6 border border-border bg-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Jobs</p>
-              <p className="text-3xl font-bold text-foreground mt-2">{stats.totalJobs}</p>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground">Active Jobs</p>
+              <p className="text-4xl font-bold text-foreground mt-2">{data.scorecards.activeJobs}</p>
             </div>
-            <BarChart3 className="w-12 h-12 text-slate-300" />
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <Activity className="w-6 h-6 text-blue-600" />
+            </div>
           </div>
         </Card>
 
-        {/* Pending Jobs */}
+        {/* Completed Today */}
         <Card className="p-6 border border-border bg-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Pending</p>
-              <p className="text-3xl font-bold text-amber-600 mt-2">{stats.pendingJobs}</p>
+          <div className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Completed Today</p>
+                <p className="text-4xl font-bold text-foreground mt-2">
+                  {data.scorecards.completedToday.count}
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              </div>
             </div>
-            <Clock className="w-12 h-12 text-amber-200" />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Daily Goal: {data.scorecards.completedToday.dailyGoal}</span>
+                <span className="font-semibold text-foreground">
+                  {data.scorecards.completedToday.percentage}%
+                </span>
+              </div>
+              <Progress
+                value={data.scorecards.completedToday.percentage}
+                className="h-2"
+              />
+            </div>
           </div>
         </Card>
 
-        {/* In Progress */}
+        {/* Average Stage Time */}
         <Card className="p-6 border border-border bg-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">In Progress</p>
-              <p className="text-3xl font-bold text-blue-600 mt-2">
-                {stats.totalJobs - stats.pendingJobs - stats.flaggedJobs}
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground">Avg. Stage Time</p>
+              <p className="text-4xl font-bold text-foreground mt-2">
+                {data.scorecards.averageStageTime}
               </p>
             </div>
-            <CheckCircle className="w-12 h-12 text-blue-200" />
+            <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+              <Clock className="w-6 h-6 text-amber-600" />
+            </div>
           </div>
         </Card>
 
-        {/* Flagged */}
+        {/* Average Idle Time */}
         <Card className="p-6 border border-border bg-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Flagged</p>
-              <p className="text-3xl font-bold text-orange-600 mt-2">{stats.flaggedJobs}</p>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground">Avg. Idle Time</p>
+              <p className="text-4xl font-bold text-foreground mt-2">
+                {data.scorecards.averageIdleTime}
+              </p>
             </div>
-            <AlertCircle className="w-12 h-12 text-orange-200" />
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <Target className="w-6 h-6 text-purple-600" />
+            </div>
           </div>
         </Card>
       </div>
 
-      {/* Jobs by Stage */}
-      <Card className="p-6 border border-border bg-card">
-        <h2 className="text-xl font-semibold text-foreground mb-6">Jobs by Stage</h2>
-        <div className="space-y-4">
-          {stages.length === 0 ? (
-            <p className="text-muted-foreground">No data available</p>
-          ) : (
-            stages.map(([stageName, count]) => (
-              <div key={stageName} className="flex items-center justify-between">
-                <span className="font-medium text-foreground">{stageName}</span>
-                <div className="flex items-center gap-4">
-                  <div className="w-32 bg-slate-200 rounded-full h-2 dark:bg-slate-700">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{
-                        width: `${(count / stats.totalJobs) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="font-semibold text-foreground w-8 text-right">{count}</span>
-                </div>
-              </div>
-            ))
-          )}
+      {/* Stage Cards Row */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-foreground mb-4">Jobs by Stage</h2>
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {data.stageData.map(stage => (
+            <StageCard
+              key={stage.stageId}
+              stageName={stage.stageName}
+              activeJobs={stage.activeJobs}
+              rejectedJobs={stage.rejectedJobs}
+              rejectRate={stage.rejectRate}
+            />
+          ))}
         </div>
-      </Card>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Units Made Per Hour */}
+        <Card className="p-6 border border-border bg-card">
+          <h3 className="text-xl font-semibold text-foreground mb-6">Units Made Per Hour</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={data.unitsPerHour}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="time" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#1f2937',
+                  border: '1px solid #374151',
+                  borderRadius: '8px',
+                }}
+                labelStyle={{ color: '#fff' }}
+              />
+              <Line
+                type="monotone"
+                dataKey="units"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                dot={{ fill: '#3b82f6', r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Working vs Waiting Time */}
+        <Card className="p-6 border border-border bg-card">
+          <h3 className="text-xl font-semibold text-foreground mb-6">Working vs Waiting Time by Stage</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={data.stageTimeData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="stage" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#1f2937',
+                  border: '1px solid #374151',
+                  borderRadius: '8px',
+                }}
+                labelStyle={{ color: '#fff' }}
+              />
+              <Legend />
+              <Bar dataKey="working" fill="#10b981" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="waiting" fill="#ef4444" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
     </div>
   )
 }
