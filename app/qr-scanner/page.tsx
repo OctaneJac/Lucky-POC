@@ -33,6 +33,19 @@ function normalize(value: string): string {
   return value.trim()
 }
 
+function getStepFromValues(values: {
+  jobId: string
+  terminal: string
+  wireType: string
+  type: string
+}): ScanStep {
+  if (!values.jobId) return 'job'
+  if (!values.terminal) return 'terminal'
+  if (!values.wireType) return 'wireType'
+  if (!values.type) return 'type'
+  return 'complete'
+}
+
 function parsePrefixedScan(raw: string): { field: ScanStep | 'jobId'; value: string } | null {
   const trimmed = raw.trim()
   const [left, ...right] = trimmed.split(':')
@@ -56,6 +69,7 @@ export default function QRScannerPage() {
   const rafRef = useRef<number | null>(null)
   const scanningRef = useRef(false)
   const lastDetectionAtRef = useRef<number>(0)
+  const lastSubmittedSignatureRef = useRef('')
   const mountedRef = useRef(true)
 
   const [cameraActive, setCameraActive] = useState(false)
@@ -171,42 +185,58 @@ export default function QRScannerPage() {
     setLastRawScan(rawValue)
 
     const parsed = parsePrefixedScan(rawValue)
-    const candidate = parsed?.value ?? normalize(rawValue)
+    if (!parsed) {
+      // This flow expects tagged barcode values like "job:123" or "terminal:ABC".
+      return
+    }
+
+    const candidate = normalize(parsed.value)
     if (!candidate) return
 
-    if (step === 'job') {
-      const jobCandidate = parsed?.field === 'jobId' || parsed === null ? candidate : ''
-      if (!jobCandidate) return
-      setJobId(jobCandidate)
-      setStep('terminal')
-      return
-    }
+    let nextJobId = jobId
+    let nextTerminal = terminal
+    let nextWireType = wireType
+    let nextType = type
 
-    if (step === 'terminal') {
-      if (parsed && parsed.field !== 'terminal') return
+    if (parsed.field === 'jobId') {
+      nextJobId = candidate
+      setJobId(candidate)
+    } else if (parsed.field === 'terminal') {
+      nextTerminal = candidate
       setTerminal(candidate)
-      setStep('wireType')
-      return
-    }
-
-    if (step === 'wireType') {
-      if (parsed && parsed.field !== 'wireType') return
+    } else if (parsed.field === 'wireType') {
+      nextWireType = candidate
       setWireType(candidate)
-      setStep('type')
+    } else if (parsed.field === 'type') {
+      nextType = candidate
+      setType(candidate)
+    }
+
+    setResult(null)
+    const nextStep = getStepFromValues({
+      jobId: nextJobId,
+      terminal: nextTerminal,
+      wireType: nextWireType,
+      type: nextType,
+    })
+    setStep(nextStep)
+
+    if (nextStep !== 'complete') {
       return
     }
 
-    if (step === 'type') {
-      if (parsed && parsed.field !== 'type') return
-      setType(candidate)
-      setStep('complete')
-      await commitVerification({
-        jobId: normalize(jobId),
-        terminal: normalize(terminal),
-        wireType: normalize(wireType),
-        type: normalize(candidate),
-      })
+    const verificationPayload = {
+      jobId: normalize(nextJobId),
+      terminal: normalize(nextTerminal),
+      wireType: normalize(nextWireType),
+      type: normalize(nextType),
     }
+
+    const signature = JSON.stringify(verificationPayload)
+    if (signature === lastSubmittedSignatureRef.current) return
+
+    lastSubmittedSignatureRef.current = signature
+    await commitVerification(verificationPayload)
   }
 
   const scanLoop = async () => {
@@ -279,6 +309,7 @@ export default function QRScannerPage() {
     setResult(null)
     setLastRawScan('')
     lastDetectionAtRef.current = 0
+    lastSubmittedSignatureRef.current = ''
   }
 
   return (
@@ -287,8 +318,8 @@ export default function QRScannerPage() {
         <div className="space-y-2">
           <h1 className="text-4xl font-bold text-foreground">Demo Barcode Verification</h1>
           <p className="text-muted-foreground">
-            Scan the job card first, then scan terminal, wire type, and type cards. The job advances
-            only if all 3 scans match the job card data.
+            Scan tagged barcodes in any order. Fields auto-fill from tags like job, terminal,
+            wireType, and type. Verification runs automatically when all fields are captured.
           </p>
         </div>
 
