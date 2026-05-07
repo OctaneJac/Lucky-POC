@@ -69,7 +69,6 @@ export default function QRScannerPage() {
   const rafRef = useRef<number | null>(null)
   const scanningRef = useRef(false)
   const lastDetectionAtRef = useRef<number>(0)
-  const lastSubmittedSignatureRef = useRef('')
   const mountedRef = useRef(true)
 
   const [cameraActive, setCameraActive] = useState(false)
@@ -97,7 +96,7 @@ export default function QRScannerPage() {
       case 'type':
         return 'Scan type barcode'
       case 'complete':
-        return 'Verification complete'
+        return 'All fields captured - ready to submit'
       default:
         return 'Scan barcode'
     }
@@ -138,20 +137,51 @@ export default function QRScannerPage() {
   }) => {
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/scan/verify', {
+      const verifyResponse = await fetch('/api/scan/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const data = (await response.json()) as VerificationResponse
+      const verifyData = (await verifyResponse.json()) as VerificationResponse
+      let finalData: VerificationResponse = verifyData
 
-      setResult(data)
+      if (!verifyData.success) {
+        try {
+          const rejectResponse = await fetch('/api/scan/reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jobId: payload.jobId,
+              remarks: verifyData.message,
+            }),
+          })
+          const rejectData = (await rejectResponse.json()) as VerificationResponse
+          finalData = rejectData.success
+            ? {
+                ...verifyData,
+                message: `${verifyData.message} ${rejectData.message}`,
+              }
+            : {
+                ...verifyData,
+                message: `${verifyData.message} Reject failed: ${rejectData.message}`,
+              }
+        } catch (rejectError) {
+          finalData = {
+            ...verifyData,
+            message: `${verifyData.message} Reject failed: ${
+              rejectError instanceof Error ? rejectError.message : 'Unknown error'
+            }`,
+          }
+        }
+      }
+
+      setResult(finalData)
       setHistory((prev) => [
         {
           timestamp: new Date(),
           jobId: payload.jobId,
-          success: data.success,
-          message: data.message,
+          success: finalData.success,
+          message: finalData.message,
         },
         ...prev,
       ])
@@ -176,7 +206,7 @@ export default function QRScannerPage() {
     }
   }
 
-  const handleDetectedScan = async (rawValue: string) => {
+  const handleDetectedScan = (rawValue: string) => {
     if (isSubmitting) return
 
     const now = Date.now()
@@ -224,19 +254,27 @@ export default function QRScannerPage() {
     if (nextStep !== 'complete') {
       return
     }
+  }
 
-    const verificationPayload = {
-      jobId: normalize(nextJobId),
-      terminal: normalize(nextTerminal),
-      wireType: normalize(nextWireType),
-      type: normalize(nextType),
+  const handleSubmit = async () => {
+    if (isSubmitting) return
+
+    const payload = {
+      jobId: normalize(jobId),
+      terminal: normalize(terminal),
+      wireType: normalize(wireType),
+      type: normalize(type),
     }
 
-    const signature = JSON.stringify(verificationPayload)
-    if (signature === lastSubmittedSignatureRef.current) return
+    if (!payload.jobId || !payload.terminal || !payload.wireType || !payload.type) {
+      setResult({
+        success: false,
+        message: 'Please scan all tagged barcodes (job, terminal, wireType, type) before submitting.',
+      })
+      return
+    }
 
-    lastSubmittedSignatureRef.current = signature
-    await commitVerification(verificationPayload)
+    await commitVerification(payload)
   }
 
   const scanLoop = async () => {
@@ -309,7 +347,6 @@ export default function QRScannerPage() {
     setResult(null)
     setLastRawScan('')
     lastDetectionAtRef.current = 0
-    lastSubmittedSignatureRef.current = ''
   }
 
   return (
@@ -319,7 +356,7 @@ export default function QRScannerPage() {
           <h1 className="text-4xl font-bold text-foreground">Demo Barcode Verification</h1>
           <p className="text-muted-foreground">
             Scan tagged barcodes in any order. Fields auto-fill from tags like job, terminal,
-            wireType, and type. Verification runs automatically when all fields are captured.
+            wireType, and type. Submit to validate and move job forward (or reject on mismatch).
           </p>
         </div>
 
@@ -379,6 +416,19 @@ export default function QRScannerPage() {
             <span className="font-mono">wireType:ABC</span>, <span className="font-mono">type:DEF</span>,{' '}
             <span className="font-mono">job:123</span>.
           </p>
+
+          <div className="pt-2">
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit and validate'
+              )}
+            </Button>
+          </div>
         </Card>
 
         {(isSubmitting || result) && (
