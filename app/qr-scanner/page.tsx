@@ -54,6 +54,7 @@ export default function QRScannerPage() {
   const streamRef = useRef<MediaStream | null>(null)
   const detectorRef = useRef<BarcodeDetectorLike | null>(null)
   const rafRef = useRef<number | null>(null)
+  const scanningRef = useRef(false)
   const lastDetectionAtRef = useRef<number>(0)
   const mountedRef = useRef(true)
 
@@ -89,6 +90,8 @@ export default function QRScannerPage() {
   }, [step])
 
   const stopCamera = () => {
+    scanningRef.current = false
+
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current)
       rafRef.current = null
@@ -209,7 +212,7 @@ export default function QRScannerPage() {
   const scanLoop = async () => {
     const video = videoRef.current
     const detector = detectorRef.current
-    if (!video || !detector || !cameraActive) return
+    if (!video || !detector || !scanningRef.current) return
 
     if (video.readyState >= 2) {
       try {
@@ -223,6 +226,7 @@ export default function QRScannerPage() {
       }
     }
 
+    if (!scanningRef.current) return
     rafRef.current = requestAnimationFrame(() => {
       void scanLoop()
     })
@@ -253,6 +257,7 @@ export default function QRScannerPage() {
         await videoRef.current.play()
       }
 
+      scanningRef.current = true
       setCameraActive(true)
       rafRef.current = requestAnimationFrame(() => {
         void scanLoop()
