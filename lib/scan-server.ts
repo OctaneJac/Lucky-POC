@@ -303,6 +303,99 @@ export interface RejectResult {
   jobNumber?: number
 }
 
+export interface VerificationPayload {
+  terminal: string
+  wireType: string
+  type: string
+}
+
+export interface VerifyAndCommitResult extends ScanCommitResult {
+  checks?: {
+    expected: VerificationPayload
+    scanned: VerificationPayload
+  }
+}
+
+function normalizeScannedValue(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+export async function verifyAndCommitScan(
+  jobIdInput: string,
+  scanned: VerificationPayload
+): Promise<VerifyAndCommitResult> {
+  const jcardId = parseJcardId(jobIdInput)
+  if (jcardId === null) {
+    return { success: false, message: 'Invalid job ID' }
+  }
+
+  const rows = await sql`
+    SELECT
+      jc.jcard_no,
+      jc.terminal_a,
+      jc.terminal_b,
+      jc.wire_tech,
+      jc.type
+    FROM j_cards jc
+    WHERE jc.jcard_id = ${jcardId}
+    LIMIT 1
+  `
+
+  if (rows.length === 0) {
+    return { success: false, message: 'Job card not found' }
+  }
+
+  const jobCard = rows[0] as {
+    jcard_no: number
+    terminal_a: string
+    terminal_b: string
+    wire_tech: string
+    type: string
+  }
+
+  const expected: VerificationPayload = {
+    terminal: `${jobCard.terminal_a} | ${jobCard.terminal_b}`,
+    wireType: jobCard.wire_tech,
+    type: jobCard.type,
+  }
+
+  const scannedTerminal = normalizeScannedValue(scanned.terminal)
+  const expectedTerminalA = normalizeScannedValue(jobCard.terminal_a)
+  const expectedTerminalB = normalizeScannedValue(jobCard.terminal_b)
+  const terminalMatches = scannedTerminal === expectedTerminalA || scannedTerminal === expectedTerminalB
+
+  const wireTypeMatches =
+    normalizeScannedValue(scanned.wireType) === normalizeScannedValue(jobCard.wire_tech)
+  const typeMatches = normalizeScannedValue(scanned.type) === normalizeScannedValue(jobCard.type)
+
+  if (!terminalMatches || !wireTypeMatches || !typeMatches) {
+    const mismatchFields = [
+      !terminalMatches ? 'Terminal' : null,
+      !wireTypeMatches ? 'Wire type' : null,
+      !typeMatches ? 'Type' : null,
+    ].filter(Boolean)
+
+    return {
+      success: false,
+      message: `Verification failed. Mismatch in: ${mismatchFields.join(', ')}.`,
+      jobNumber: jobCard.jcard_no,
+      checks: {
+        expected,
+        scanned,
+      },
+    }
+  }
+
+  const committed = await commitScan(jobIdInput)
+  return {
+    ...committed,
+    checks: {
+      expected,
+      scanned,
+    },
+  }
+}
+
 export async function rejectScan(jobIdInput: string, remarks?: string): Promise<RejectResult> {
   const preview = await buildScanPreview(jobIdInput)
   if (!preview.success) {
